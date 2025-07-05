@@ -1,3 +1,8 @@
+import os
+import json
+
+ARCHIVO_USUARIOS = "usuarios.json"
+
 # Función de cifrado César
 def cifrado_cesar(texto, desplazamiento):
     resultado = ""
@@ -26,171 +31,177 @@ def mostrar_menu():
     print("5. Mostrar servicios registrados")
     print("6. Cerrar sesión")
 
+# Archivo JSON: usuarios
+def cargar_usuarios():
+    if os.path.exists(ARCHIVO_USUARIOS):
+        with open(ARCHIVO_USUARIOS, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def guardar_usuarios(usuarios):
+    with open(ARCHIVO_USUARIOS, "w", encoding="utf-8") as f:
+        json.dump(usuarios, f, indent=2)
+
 # Función para agregar un nuevo usuario
-def agregar_usuario(usuarios, claves_maestras):
+def agregar_usuario(usuarios):
     while True:
-        username = input("Ingrese un nombre de usuario (máximo 10 caracteres): ")
-        if len(username) <= 10:
+        username = input("Ingrese un nombre de usuario (máximo 10 caracteres): ").lower()
+        if len(username) <= 10 and username not in usuarios:
             break
-        else:
-            print("El nombre de usuario no puede ser mayor a 10 caracteres.")
-    
+        print("Nombre inválido o ya existe.")
+   
     while True:
         pin = input("Ingrese un PIN de acceso (3 dígitos, entre 001 y 999): ")
         if pin.isdigit() and 1 <= int(pin) <= 999:
             pin = pin.zfill(3)  # Esta parte del código asegura que el PIN tenga siempre 3 dígitos
             break
-        else:
-            print("El PIN debe ser un número de 3 dígitos entre 001 y 999.")
-    
-    usuarios[username.lower()] = pin
-    claves_maestras[username.lower()] = None  # El usuario en un principio no tiene una clave maestra definida
+        print("PIN inválido.")
+   
+    usuarios[username] = {
+        "pin": pin,
+        "clave_maestra": None,
+        "servicios": {}
+    }
+    guardar_usuarios(usuarios)
     print(f"Usuario {username} registrado exitosamente.")
 
-# Función para iniciar sesión
-def iniciar_sesion(usuarios, claves_maestras):
-    if not usuarios:  # Se verifican si existen usuarios registrados
-        print("No hay usuarios registrados.")
-        return None, None
-    
-    username = input("Ingrese su nombre de usuario: ").lower()
-    if username in usuarios:
-        pin = input("Ingrese su PIN: ").zfill(3)
-        if pin == usuarios[username]:
-            print(f"Bienvenido {username}!")
-            clave_maestra = claves_maestras.get(username)
-            if not clave_maestra:
-                print("Es necesario que configure su clave maestra para realizar cambios almacenados en su usuario.")
-                clave_maestra = pedir_clave()
-                claves_maestras[username] = clave_maestra  # Se almacena la clave maestra asociada al usuario
-            return username, clave_maestra  # Se retorna el nombre de usuario junto con su clave maestra
-        else:
-            print("PIN incorrecto. Inténtelo de nuevo.")
-            return None, None
-    else:
-        print("Usuario no encontrado.")
-        return None, None
-
-# Función para registrar una nueva contraseña
-def registrar_contraseña(contraseñas):
-    servicio = input("Ingrese el nombre del servicio que desea registrar: ").lower()
-    usuario = input("Ingrese el nombre de usuario o correo electrónico: ")
-    contraseña = input("Ingrese la contraseña para este servicio: ")
-    
-    contraseña_cifrada = cifrado_cesar(contraseña, 3)
-    contraseñas[servicio] = {'usuario': usuario, 'contraseña': contraseña_cifrada}
-    print(f"\nContraseña para {servicio} registrada exitosamente.")
-
-# Función para ver las contraseñas registradas
-def ver_contraseña(contraseñas):
-    servicio = input("\nIngrese el nombre del servicio del cual desea ver la contraseña: ").lower()
-    if servicio in contraseñas:
-        datos = contraseñas[servicio]
-        contraseña_descifrada = cifrado_cesar(datos['contraseña'], -3)
-        print(f"\nServicio: {servicio}")
-        print(f"  Usuario: {datos['usuario']}")
-        print(f"  Contraseña: {contraseña_descifrada}")
-    else:
-        print(f"\nEl servicio '{servicio}' no se encuentra registrado.")
-
-# Función para modificar datos de un servicio
-def modificar_contraseña(contraseñas):
-    servicio = input("\nIngrese el nombre del servicio a modificar: ").lower()
-    if servicio in contraseñas:
-        print("¿Qué desea modificar?")
-        print("1. Modificar usuario")
-        print("2. Modificar contraseña")
-        print("3. Modificar ambos")
-        opcion = input("Escoga una opción: ")
-        
-        if opcion == '1' or opcion == '3':
-            nuevo_usuario = input("Ingrese el nuevo nombre de usuario o correo electrónico: ")
-            contraseñas[servicio]['usuario'] = nuevo_usuario
-        if opcion == '2' or opcion == '3':
-            nueva_contraseña = input("Ingrese la nueva contraseña: ")
-            contraseñas[servicio]['contraseña'] = cifrado_cesar(nueva_contraseña, 3)
-        
-        print(f"\nDatos de {servicio} actualizados exitosamente.")
-    else:
-        print(f"\nEl servicio {servicio} no se encuentra registrado.")
-
-# Función para eliminar un servicio registrado
-def eliminar_contraseña(contraseñas):
-    servicio = input("\nIngrese el nombre del servicio a eliminar: ").lower()
-    if servicio in contraseñas:
-        del contraseñas[servicio]
-        print(f"\nEl servicio {servicio} ha sido eliminado.")
-    else:
-        print(f"\nEl servicio {servicio} no se encuentra registrado.")
-
-# Función para mostrar los servicios registrados
-def mostrar_servicios_registrados(contraseñas):
-    if contraseñas:
-        print("\nServicios registrados:")
-        for servicio in contraseñas.keys():
-            print(f" - {servicio}")
-    else:
-        print("\nNo existen servicios registrados.")
-
-# Función para solicitar y validar la clave maestra
+# Función para configurar la clave maestra
 def pedir_clave():
     clave = input("Ingrese una clave maestra para esta cuenta: ")
     return cifrado_cesar(clave, 3)
 
+# Función para iniciar sesión en un usuario del gestor
+def iniciar_sesion(usuarios):
+    if not usuarios:
+        print("No hay usuarios registrados.")
+        return None, None
+
+    username = input("Ingrese su nombre de usuario: ").lower()
+    if username not in usuarios:
+        print("Usuario no encontrado.")
+        return None, None
+
+    pin = input("Ingrese su PIN: ").zfill(3)
+    if pin != usuarios[username]["pin"]:
+        print("PIN incorrecto.")
+        return None, None
+
+    print(f"Bienvenido {username}!")
+    if not usuarios[username]["clave_maestra"]:
+        print("Primera vez: configure una clave maestra.")
+        usuarios[username]["clave_maestra"] = pedir_clave()
+        guardar_usuarios(usuarios)
+
+    return username, usuarios[username]["clave_maestra"]
+
+# Función para validar la clave maestra
 def validar_clave(clave_almacenada, max_intentos=3):
-    intentos = 0
-    while intentos < max_intentos:
-        clave_ingresada = input("\nIngrese la clave maestra asociada a esta cuenta para continuar con la acción: ")
-        clave_ingresada_cifrada = cifrado_cesar(clave_ingresada, 3)
-        if clave_ingresada_cifrada == clave_almacenada:
+    for i in range(max_intentos):
+        clave = input("Ingrese su clave maestra para continuar: ")
+        if cifrado_cesar(clave, 3) == clave_almacenada:
             return True
-        else:
-            intentos += 1
-            print(f"Clave incorrecta. Intentos restantes: {max_intentos - intentos}")
-    
-    print("\nDemasiados intentos fallidos. Volviendo al menú.")
+        print(f"Clave incorrecta. Intentos restantes: {max_intentos - i - 1}")
+    print("Demasiados intentos. Volviendo al menú.")
     return False
+
+# Función para registrar una nueva contraseña
+def registrar_contraseña(usuario, usuarios):
+    servicio = input("Servicio: ").lower()
+    usuario_servicio = input("Usuario/correo: ")
+    contraseña = input("Contraseña: ")
+    usuarios[usuario]["servicios"][servicio] = {
+        "usuario": usuario_servicio,
+        "contraseña": cifrado_cesar(contraseña, 3)
+    }
+    guardar_usuarios(usuarios)
+    print(f"Contraseña para {servicio} registrada.")
+
+# Función para ver las contraseñas registradas
+def ver_contraseña(usuario, usuarios):
+    servicio = input("Servicio: ").lower()
+    servicios = usuarios[usuario]["servicios"]
+    if servicio in servicios:
+        datos = servicios[servicio]
+        print(f"Usuario: {datos['usuario']}")
+        print(f"Contraseña: {cifrado_cesar(datos['contraseña'], -3)}")
+    else:
+        print("Servicio no registrado.")
+
+# Función para modificar datos de un servicio
+def modificar_contraseña(usuario, usuarios):
+    servicio = input("Servicio a modificar: ").lower()
+    servicios = usuarios[usuario]["servicios"]
+    if servicio in servicios:
+        print("1. Modificar usuario")
+        print("2. Modificar contraseña")
+        print("3. Modificar ambos")
+        op = input("Opción: ")
+        if op == '1' or op == '3':
+            servicios[servicio]["usuario"] = input("Nuevo usuario/correo: ")
+        if op == '2' or op == '3':
+            nueva = input("Nueva contraseña: ")
+            servicios[servicio]["contraseña"] = cifrado_cesar(nueva, 3)
+        guardar_usuarios(usuarios)
+        print("Datos actualizados.")
+    else:
+        print("Servicio no registrado.")
+
+# Función para eliminar un servicio registrado
+def eliminar_contraseña(usuario, usuarios):
+    servicio = input("Servicio a eliminar: ").lower()
+    servicios = usuarios[usuario]["servicios"]
+    if servicio in servicios:
+        del servicios[servicio]
+        guardar_usuarios(usuarios)
+        print("Servicio eliminado.")
+    else:
+        print("Servicio no registrado.")
+
+#Función para mostrar los servicios registrados de un usuario
+def mostrar_servicios_registrados(usuario, usuarios):
+    servicios = usuarios[usuario]["servicios"]
+    if servicios:
+        print("Servicios registrados:")
+        for s in servicios:
+            print(f" - {s}")
+    else:
+        print("No hay servicios registrados.")
 
 # Función principal del programa
 def main():
-    usuarios = {}  # Diccionario para almacenar los usuarios y sus PINES
-    claves_maestras = {}  # Diccionario para almacenar la clave maestra de cada usuario
-    contraseñas = {}  # Diccionario para almacenar las contraseñas registradas
-    usuario_actual = None
-    clave_maestra = None  # Clave maestra que se asignará después de iniciar sesión
+    usuarios = cargar_usuarios()
 
     while True:
         mostrar_menu_principal()
         opcion = input("Seleccione una opción: ")
 
-        if opcion == '1':  # Registrar un nuevo usuario en el sistema
-            agregar_usuario(usuarios, claves_maestras)
-        elif opcion == '2':  # Iniciar sesión en el sistema
-            usuario_actual, clave_maestra = iniciar_sesion(usuarios, claves_maestras)
-            if usuario_actual:  # Si el inicio de sesión fue exitoso se ejecuta el menú de gestión de contraseñas
-                while usuario_actual:
+        if opcion == '1':
+            agregar_usuario(usuarios)
+        elif opcion == '2':
+            usuario_actual, clave_maestra = iniciar_sesion(usuarios)
+            if usuario_actual:
+                while True:
                     mostrar_menu()
-                    opcion = input("Seleccione una opción: ")
-
-                    if opcion in {'1', '2', '3', '4', '5'}:
-                        if validar_clave(clave_maestra):  # Usamos la clave maestra aquí
-                            if opcion == '1':
-                                registrar_contraseña(contraseñas)
-                            elif opcion == '2':
-                                ver_contraseña(contraseñas)
-                            elif opcion == '3':
-                                modificar_contraseña(contraseñas)
-                            elif opcion == '4':
-                                eliminar_contraseña(contraseñas)
-                            elif opcion == '5':
-                                mostrar_servicios_registrados(contraseñas)
-                    elif opcion == '6':  # Esta función cierrar sesión del usuario
-                        print("Cerrando sesión...\n")
+                    op = input("Seleccione una opción: ")
+                    if op in {'1', '2', '3', '4', '5'}:
+                        if validar_clave(clave_maestra):
+                            if op == '1':
+                                registrar_contraseña(usuario_actual, usuarios)
+                            elif op == '2':
+                                ver_contraseña(usuario_actual, usuarios)
+                            elif op == '3':
+                                modificar_contraseña(usuario_actual, usuarios)
+                            elif op == '4':
+                                eliminar_contraseña(usuario_actual, usuarios)
+                            elif op == '5':
+                                mostrar_servicios_registrados(usuario_actual, usuarios)
+                    elif op == '6':
+                        print("Cerrando sesión...")
                         break
                     else:
                         print("Opción no válida.")
-        elif opcion == '0':  # Esta opción cierra el programa
-            print("Saliendo del gestor de contraseñas...")
+        elif opcion == '0':
+            print("Saliendo del programa.")
             break
         else:
             print("Opción no válida.")
