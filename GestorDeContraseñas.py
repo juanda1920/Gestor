@@ -118,6 +118,7 @@ def iniciar_sesion(usuarios):
     print(Colores.VERDE + f"Bienvenido {username}!" + Colores.RESET)
     if not usuarios[username]["clave_maestra"]:
         print(Colores.MORADO + "Primera vez: configure una clave maestra." + Colores.RESET)
+        pausar()
         usuarios[username]["clave_maestra"] = pedir_clave()
         guardar_usuarios(usuarios)
     pausar()
